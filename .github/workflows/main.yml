@@ -1,204 +1,274 @@
 name: RDP
 
-
 on:
-
   workflow_dispatch:
-
 
 jobs:
 
   secure-rdp:
-
     runs-on: windows-latest
-
-    timeout-minutes: 3600
-
+    timeout-minutes: 365
 
     steps:
 
-      - name: Configure Core RDP Settings
-
+      - name: Free Up Disk Space
         run: |
+          # Remove Android Studio
+          Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
 
+          # Remove Miniconda / Anaconda
+          Remove-Item -Recurse -Force "C:\Miniconda" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\Miniconda3" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\tools\miniconda3" -ErrorAction SilentlyContinue
+
+          # Remove Haskell
+          Remove-Item -Recurse -Force "C:\ghcup" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\ghc" -ErrorAction SilentlyContinue
+
+          # Remove Rust
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\.cargo" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\.rustup" -ErrorAction SilentlyContinue
+
+          # Remove Go
+          Remove-Item -Recurse -Force "C:\Program Files\Go" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\go" -ErrorAction SilentlyContinue
+
+          # Remove Boost C++ libraries
+          Remove-Item -Recurse -Force "C:\local\boost*" -ErrorAction SilentlyContinue
+
+          # Remove PHP
+          Remove-Item -Recurse -Force "C:\tools\php" -ErrorAction SilentlyContinue
+
+          # Remove Azure CLI
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
+
+          # Remove Chocolatey cache
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+
+          # Remove Windows SDK extras
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue
+
+          # Remove Temp files
+          Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
+
+          # Remove other heavy pre-installed tools
+          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files\Java" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SQL Server" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\SeleniumWebDrivers" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\tools" -ErrorAction SilentlyContinue
+
+          Write-Host "Disk cleanup done!"
+          Get-PSDrive C | Select-Object Used, Free
+
+      - name: Configure Core RDP Settings
+        run: |
           # Enable Remote Desktop and disable Network Level Authentication (if needed)
-
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
-
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
-
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
 
           # Remove any existing rule with the same name to avoid duplication
           netsh advfirewall firewall delete rule name="RDP-Tailscale" || echo "No existing rule"
-
          
-
           # For testing, allow any incoming connection on port 3389
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
-
 
           # (Optional) Restart the Remote Desktop service to ensure changes take effect
           Restart-Service -Name TermService -Force
 
 
       - name: Create RDP User with Secure Password
-
         run: |
-
-          Add-Type -AssemblyName System.Security
-
-          $charSet = @{
-
-              Upper   = [char[]](65..90)      # A-Z
-
-              Lower   = [char[]](97..122)     # a-z
-
-              Number  = [char[]](48..57)      # 0-9
-
-              Special = ([char[]](33..47) + [char[]](58..64) +
-
-                         [char[]](91..96) + [char[]](123..126)) # Special characters
-
-          }
-
-          $rawPassword = @()
-
-          $rawPassword += $charSet.Upper | Get-Random -Count 4
-
-          $rawPassword += $charSet.Lower | Get-Random -Count 4
-
-          $rawPassword += $charSet.Number | Get-Random -Count 4
-
-          $rawPassword += $charSet.Special | Get-Random -Count 4
-
-          $password = -join ($rawPassword | Sort-Object { Get-Random })
-
+          $password = "${{ secrets.RDP_PASSWORD }}"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
-
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
-
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-
-         
 
           echo "RDP_CREDS=User: RDP | Password: $password" >> $env:GITHUB_ENV
 
-         
-
           if (-not (Get-LocalUser -Name "RDP")) {
-
               Write-Error "User creation failed"
-
               exit 1
-
           }
 
-
       - name: Install Tailscale
-
         run: |
-
           $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-
           $installerPath = "$env:TEMP\tailscale.msi"
-
-         
-
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
-
           Remove-Item $installerPath -Force
 
 
       - name: Establish Tailscale Connection
-
         run: |
-
           # Bring up Tailscale with the provided auth key and set a unique hostname
-
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
-         
-
           # Wait for Tailscale to assign an IP
-
           $tsIP = $null
-
           $retries = 0
-
           while (-not $tsIP -and $retries -lt 10) {
-
               $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
-
               Start-Sleep -Seconds 5
-
               $retries++
-
           }
 
-         
-
           if (-not $tsIP) {
-
               Write-Error "Tailscale IP not assigned. Exiting."
-
               exit 1
-
           }
 
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-     
-
       - name: Verify RDP Accessibility
-
         run: |
-
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
 
-         
-
           # Test connectivity using Test-NetConnection against the Tailscale IP on port 3389
-
           $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
-
           if (-not $testResult.TcpTestSucceeded) {
-
               Write-Error "TCP connection to RDP port 3389 failed"
-
               exit 1
-
           }
 
           Write-Host "TCP connectivity successful!"
 
+      - name: Install Node.js
+        run: |
+          winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements
+          # Need to refresh PATH before using npm
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          npm install -g yarn pnpm typescript ts-node nodemon
+          Write-Host "Node.js installed!"
+
+      - name: Install Python
+        run: |
+          winget install -e --id Python.Python.3.12 --silent --accept-package-agreements
+          # Refresh PATH properly
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          pip install requests numpy pandas flask fastapi uvicorn django `
+                      python-dotenv httpx pytest black pylint
+          Write-Host "Python installed!"
+
+      - name: Install Docker Desktop
+        run: |
+          winget install -e --id Docker.DockerDesktop --silent --accept-package-agreements
+          Write-Host "Docker installed - requires RDP session to start daemon"
+
+      - name: Install CLI Tools
+        run: |
+          # GitHub CLI
+          winget install -e --id GitHub.cli --silent --accept-package-agreements
+          # curl and wget alternatives are built-in but just in case
+          winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements
+          # bun (fast JS runtime/package manager)
+          winget install -e --id Oven-sh.Bun --silent --accept-package-agreements
+          Write-Host "CLI tools installed!"
+
+      - name: Configure Git
+        run: |
+          $gitName = "${{ secrets.GIT_USERNAME }}"
+          $gitEmail = "${{ secrets.GIT_EMAIL }}"
+
+          if (-not $gitName -or -not $gitEmail) {
+              Write-Host "GIT_USERNAME or GIT_EMAIL secret not set, skipping Git config..."
+              exit 0
+          }
+
+          git config --global user.name "$gitName"
+          git config --global user.email "$gitEmail"
+          git config --global core.autocrlf false
+          git config --global init.defaultBranch main
+          Write-Host "Git configured for $gitName!"
+
+
+      - name: Install VS Code & Extensions
+        run: |
+          # Download and install VS Code
+          $vsUrl = "https://update.code.visualstudio.com/latest/win32-x64/stable"
+          $installerPath = "$env:TEMP\vscode-installer.exe"
+          Invoke-WebRequest -Uri $vsUrl -OutFile $installerPath
+          Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/mergetasks=!runcode" -Wait
+          Remove-Item $installerPath -Force
+          Write-Host "VS Code installed!"
+
+          # Set code path
+          $codePath = "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd"
+
+          # All extensions to install
+          $extensions = @(
+              # GitHub
+              "GitHub.copilot",
+              "GitHub.copilot-chat",
+              "GitHub.vscode-github-actions",
+              "GitHub.vscode-pull-request-github",
+
+              # Python / Microsoft
+              "ms-python.python",
+              "ms-python.pylance",
+              "ms-python.debugpy",
+              "ms-python.black-formatter",
+              "ms-toolsai.jupyter",              # closest to Google Colab (Jupyter notebooks)
+              "ms-toolsai.jupyter-keymap",
+              "ms-toolsai.jupyter-renderers",
+
+              # HTML / CSS / JS
+              "formulahendry.auto-rename-tag",
+              "formulahendry.auto-close-tag",
+              "formulahendry.code-runner",
+              "dbaeumer.vscode-eslint",
+              "esbenp.prettier-vscode",
+              "joy-yu.css-snippets",
+              "pranaygp.vscode-css-peek",
+              "stivo.tailwind-fold",
+              "bradlc.vscode-tailwindcss",       # Tailwind IntelliSense
+              "dsznajder.es7-react-js-snippets",  # React snippets
+
+              # IntelliSense / Helpers
+              "christian-kohler.path-intellisense",
+              "christian-kohler.npm-intellisense",
+              "WallabyJs.quokka-vscode",
+
+              # Productivity / UI
+              "PKief.material-icon-theme",
+              "eamodio.gitlens",                  # Git supercharged
+              "ms-vsliveshare.vsliveshare",
+              "janisdd.vscode-edit-csv",
+              "mikestead.dotenv",                 # .env file support
+              "humao.rest-client",                # API testing
+              "rangav.vscode-thunder-client",     # Postman alternative
+
+              # Full Stack extras
+              "Prisma.prisma",                    # Prisma ORM
+              "ms-azuretools.vscode-docker",      # Docker
+              "ritwickdey.LiveServer",            # Live Server
+              "streetsidesoftware.code-spell-checker"
+          )
+
+          # Install each extension
+          foreach ($ext in $extensions) {
+              Write-Host "Installing: $ext"
+              & $codePath --install-extension $ext --force 2>&1
+          }
+
+          Write-Host "All extensions installed!"
 
       - name: Maintain Connection
-
         run: |
-
           Write-Host "`n=== RDP ACCESS ==="
-
           Write-Host "Address: $env:TAILSCALE_IP"
-
           Write-Host "Username: RDP"
-
-          Write-Host "Password: $(echo $env:RDP_CREDS)"
-
+          Write-Host "Password: $env:RDP_CREDS"
           Write-Host "==================`n"
 
-         
-
           # Keep runner active indefinitely (or until manually cancelled)
-
           while ($true) {
-
               Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
-
               Start-Sleep -Seconds 300
-
           }
