@@ -13,53 +13,104 @@ jobs:
 
       - name: Free Up Disk Space
         run: |
-          # Remove Android Studio
+          # ── Android ──────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
 
-          # Remove Miniconda / Anaconda
+          # ── Miniconda / Anaconda ──────────────────────────────────
           Remove-Item -Recurse -Force "C:\Miniconda" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\ProgramData\Miniconda3" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\tools\miniconda3" -ErrorAction SilentlyContinue
 
-          # Remove Haskell
+          # ── Haskell ───────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\ghcup" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\ghc" -ErrorAction SilentlyContinue
 
-          # Remove Rust
+          # ── Rust ──────────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\Users\runneradmin\.cargo" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\Users\runneradmin\.rustup" -ErrorAction SilentlyContinue
 
-          # Remove Go
+          # ── Go ────────────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\Program Files\Go" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\Users\runneradmin\go" -ErrorAction SilentlyContinue
 
-          # Remove Boost C++ libraries
+          # ── Boost C++ ─────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\local\boost*" -ErrorAction SilentlyContinue
 
-          # Remove PHP
+          # ── PHP ───────────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\tools\php" -ErrorAction SilentlyContinue
 
-          # Remove Azure CLI
+          # ── Azure CLI ─────────────────────────────────────────────
           Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
+          winget uninstall --id Microsoft.AzureCLI --silent --accept-source-agreements 2>$null | Out-Null
 
-          # Remove Chocolatey cache
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+          # ── Amazon / AWS ──────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\Amazon" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Amazon" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\Amazon" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\.aws" -ErrorAction SilentlyContinue
 
-          # Remove Windows SDK extras
+          # ── CMake ─────────────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\CMake" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\cmake" -ErrorAction SilentlyContinue
+
+          # ── LLVM / Clang ──────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\LLVM" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\llvm" -ErrorAction SilentlyContinue
+
+          # ── Microsoft SDKs (Windows Kits) ────────────────────────
           Remove-Item -Recurse -Force "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs" -ErrorAction SilentlyContinue
 
-          # Remove Temp files
-          Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
+          # ── Microsoft Visual Studio (Full IDE, NOT VS Code) ───────
+          Remove-Item -Recurse -Force "C:\Program Files\Microsoft Visual Studio" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
 
-          # Remove other heavy pre-installed tools
-          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+          # ── Firefox ───────────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\Mozilla Firefox" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files (x86)\Mozilla Firefox" -ErrorAction SilentlyContinue
+
+          # ── Unity Hub ─────────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\Unity Hub" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Program Files\Unity" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\Unity" -ErrorAction SilentlyContinue
+
+          # ── R & RTools ────────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\R" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Rtools*" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\R*" -ErrorAction SilentlyContinue
+
+          # ── Azure Cosmos DB Emulator ──────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\Azure Cosmos DB Emulator" -ErrorAction SilentlyContinue
+          winget uninstall --id Microsoft.Azure.CosmosEmulator --silent --accept-source-agreements 2>$null | Out-Null
+
+          # ── Azure Service Fabric ──────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\Microsoft Service Fabric" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\SFDevCluster" -ErrorAction SilentlyContinue
+
+          # ── Strawberry Perl ───────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Strawberry" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\strawberryperl" -ErrorAction SilentlyContinue
+
+          # ── Chocolatey cache & lib ────────────────────────────────
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\cache" -ErrorAction SilentlyContinue
+
+          # ── Java / SQL Server / Selenium ──────────────────────────
           Remove-Item -Recurse -Force "C:\Program Files\Java" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\Program Files\Microsoft SQL Server" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio" -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force "C:\SeleniumWebDrivers" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\tools" -ErrorAction SilentlyContinue
+
+          # ── dotnet (pre-installed heavy SDK) ─────────────────────
+          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+
+          # ── Temp files ────────────────────────────────────────────
+          Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
 
           Write-Host "Disk cleanup done!"
           Get-PSDrive C | Select-Object Used, Free
@@ -141,34 +192,23 @@ jobs:
 
       - name: Install Node.js
         run: |
-          winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements
-          # Need to refresh PATH before using npm
+          winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           npm install -g yarn pnpm typescript ts-node nodemon
           Write-Host "Node.js installed!"
 
-      - name: Install Python
+      - name: Install Python Packages
         run: |
-          winget install -e --id Python.Python.3.12 --silent --accept-package-agreements
-          # Refresh PATH properly
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          pip install requests numpy pandas flask fastapi uvicorn django `
-                      python-dotenv httpx pytest black pylint
-          Write-Host "Python installed!"
-
-      - name: Install Docker Desktop
-        run: |
-          winget install -e --id Docker.DockerDesktop --silent --accept-package-agreements
-          Write-Host "Docker installed - requires RDP session to start daemon"
+          python --version
+          pip install requests numpy pandas flask fastapi uvicorn django python-dotenv httpx pytest black pylint
+          Write-Host "Python packages installed!"
 
       - name: Install CLI Tools
         run: |
-          # GitHub CLI
-          winget install -e --id GitHub.cli --silent --accept-package-agreements
-          # curl and wget alternatives are built-in but just in case
-          winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements
-          # bun (fast JS runtime/package manager)
-          winget install -e --id Oven-sh.Bun --silent --accept-package-agreements
+          winget install -e --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
+          winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements
+          winget install -e --id Oven-sh.Bun --silent --accept-package-agreements --accept-source-agreements
           Write-Host "CLI tools installed!"
 
       - name: Configure Git
@@ -198,25 +238,43 @@ jobs:
           Remove-Item $installerPath -Force
           Write-Host "VS Code installed!"
 
-          # Set code path
-          $codePath = "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd"
+          # Refresh PATH so the new install is visible
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+          # Dynamically find code.cmd — handles any install location
+          $codePath = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+
+          if (-not $codePath) {
+              # Fallback: search common locations
+              $candidates = @(
+                  "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+                  "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+              )
+              foreach ($c in $candidates) {
+                  if (Test-Path $c) { $codePath = $c; break }
+              }
+          }
+
+          if (-not $codePath) {
+              Write-Error "Could not find code.cmd. VS Code may not have installed correctly."
+              exit 1
+          }
+
+          Write-Host "Using VS Code at: $codePath"
 
           # All extensions to install
           $extensions = @(
               # GitHub
               "GitHub.copilot",
-              "GitHub.copilot-chat",
               "GitHub.vscode-github-actions",
               "GitHub.vscode-pull-request-github",
 
-              # Python / Microsoft
+              # Python / AI / Notebooks
               "ms-python.python",
-              "ms-python.pylance",
-              "ms-python.debugpy",
+              "ms-python.vscode-pylance",
               "ms-python.black-formatter",
-              "ms-toolsai.jupyter",              # closest to Google Colab (Jupyter notebooks)
-              "ms-toolsai.jupyter-keymap",
-              "ms-toolsai.jupyter-renderers",
+              "ms-toolsai.jupyter",
+              "Google.colab",   
 
               # HTML / CSS / JS
               "formulahendry.auto-rename-tag",
@@ -227,8 +285,8 @@ jobs:
               "joy-yu.css-snippets",
               "pranaygp.vscode-css-peek",
               "stivo.tailwind-fold",
-              "bradlc.vscode-tailwindcss",       # Tailwind IntelliSense
-              "dsznajder.es7-react-js-snippets",  # React snippets
+              "bradlc.vscode-tailwindcss",
+              "dsznajder.es7-react-js-snippets",
 
               # IntelliSense / Helpers
               "christian-kohler.path-intellisense",
@@ -237,17 +295,17 @@ jobs:
 
               # Productivity / UI
               "PKief.material-icon-theme",
-              "eamodio.gitlens",                  # Git supercharged
+              "eamodio.gitlens",
               "ms-vsliveshare.vsliveshare",
               "janisdd.vscode-edit-csv",
-              "mikestead.dotenv",                 # .env file support
-              "humao.rest-client",                # API testing
-              "rangav.vscode-thunder-client",     # Postman alternative
+              "mikestead.dotenv",
+              "humao.rest-client",
+              "rangav.vscode-thunder-client",
 
               # Full Stack extras
-              "Prisma.prisma",                    # Prisma ORM
-              "ms-azuretools.vscode-docker",      # Docker
-              "ritwickdey.LiveServer",            # Live Server
+              "Prisma.prisma",
+              "ms-azuretools.vscode-docker",
+              "ritwickdey.LiveServer",
               "streetsidesoftware.code-spell-checker"
           )
 
