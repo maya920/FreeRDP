@@ -11,311 +11,366 @@ jobs:
 
     steps:
 
-      - name: Free Up Disk Space
+      - name: Start Background Cleanup
         run: |
-          # ── Android ──────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
+          $script = @'
+              # ── Android ──────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
 
-          # ── Miniconda / Anaconda ──────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Miniconda" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\Miniconda3" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\tools\miniconda3" -ErrorAction SilentlyContinue
+              # ── Miniconda / Anaconda ──────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Miniconda" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\Miniconda3" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\tools\miniconda3" -ErrorAction SilentlyContinue
 
-          # ── Haskell ───────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\ghcup" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\ghc" -ErrorAction SilentlyContinue
+              # ── Haskell ───────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\ghcup" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\ghc" -ErrorAction SilentlyContinue
 
-          # ── Rust ──────────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\.cargo" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\.rustup" -ErrorAction SilentlyContinue
+              # ── Rust ──────────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\.cargo" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\.rustup" -ErrorAction SilentlyContinue
 
-          # ── Go ────────────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Go" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\go" -ErrorAction SilentlyContinue
+              # ── Go ────────────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Go" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\go" -ErrorAction SilentlyContinue
 
-          # ── Boost C++ ─────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\local\boost*" -ErrorAction SilentlyContinue
+              # ── Boost C++ ─────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\local\boost*" -ErrorAction SilentlyContinue
 
-          # ── PHP ───────────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\tools\php" -ErrorAction SilentlyContinue
+              # ── PHP ───────────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\tools\php" -ErrorAction SilentlyContinue
 
-          # ── Azure CLI ─────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
-          winget uninstall --id Microsoft.AzureCLI --silent --accept-source-agreements 2>$null | Out-Null
+              # ── Azure CLI ─────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs\Azure" -ErrorAction SilentlyContinue
+              winget uninstall --id Microsoft.AzureCLI --silent --accept-source-agreements 2>$null | Out-Null
 
-          # ── Amazon / AWS ──────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Amazon" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Amazon" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\Amazon" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\.aws" -ErrorAction SilentlyContinue
+              # ── Amazon / AWS ──────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Amazon" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Amazon" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\Amazon" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\.aws" -ErrorAction SilentlyContinue
 
-          # ── CMake ─────────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\CMake" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\cmake" -ErrorAction SilentlyContinue
+              # ── CMake ─────────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\CMake" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\cmake" -ErrorAction SilentlyContinue
 
-          # ── LLVM / Clang ──────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\LLVM" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\llvm" -ErrorAction SilentlyContinue
+              # ── LLVM / Clang ──────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\LLVM" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\llvm" -ErrorAction SilentlyContinue
 
-          # ── Microsoft SDKs (Windows Kits) ────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs" -ErrorAction SilentlyContinue
+              # ── Microsoft SDKs (Windows Kits) ────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Windows Kits" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files\Microsoft SDKs" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs" -ErrorAction SilentlyContinue
 
-          # ── Microsoft Visual Studio (Full IDE, NOT VS Code) ───────
-          Remove-Item -Recurse -Force "C:\Program Files\Microsoft Visual Studio" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
+              # ── Microsoft Visual Studio (Full IDE, NOT VS Code) ───────
+              Remove-Item -Recurse -Force "C:\Program Files\Microsoft Visual Studio" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft Visual Studio" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Microsoft\VisualStudio" -ErrorAction SilentlyContinue
 
-          # ── Firefox ───────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Mozilla Firefox" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Mozilla Firefox" -ErrorAction SilentlyContinue
+              # ── Firefox ───────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Mozilla Firefox" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files (x86)\Mozilla Firefox" -ErrorAction SilentlyContinue
 
-          # ── Unity Hub ─────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Unity Hub" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files\Unity" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\Unity" -ErrorAction SilentlyContinue
+              # ── Unity Hub ─────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Unity Hub" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files\Unity" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\Unity" -ErrorAction SilentlyContinue
 
-          # ── R & RTools ────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\R" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Rtools*" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\R*" -ErrorAction SilentlyContinue
+              # ── R & RTools ────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\R" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Rtools*" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\R*" -ErrorAction SilentlyContinue
 
-          # ── Azure Cosmos DB Emulator ──────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Azure Cosmos DB Emulator" -ErrorAction SilentlyContinue
-          winget uninstall --id Microsoft.Azure.CosmosEmulator --silent --accept-source-agreements 2>$null | Out-Null
+              # ── Azure Cosmos DB Emulator ──────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Azure Cosmos DB Emulator" -ErrorAction SilentlyContinue
+              winget uninstall --id Microsoft.Azure.CosmosEmulator --silent --accept-source-agreements 2>$null | Out-Null
 
-          # ── Azure Service Fabric ──────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Microsoft Service Fabric" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\SFDevCluster" -ErrorAction SilentlyContinue
+              # ── Azure Service Fabric ──────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Microsoft Service Fabric" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\SFDevCluster" -ErrorAction SilentlyContinue
 
-          # ── Strawberry Perl ───────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Strawberry" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\strawberryperl" -ErrorAction SilentlyContinue
+              # ── Strawberry Perl ───────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Strawberry" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib\strawberryperl" -ErrorAction SilentlyContinue
 
-          # ── Chocolatey cache & lib ────────────────────────────────
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\cache" -ErrorAction SilentlyContinue
+              # ── Chocolatey cache & lib ────────────────────────────────
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\lib" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\ProgramData\chocolatey\cache" -ErrorAction SilentlyContinue
 
-          # ── Java / SQL Server / Selenium ──────────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\Java" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Program Files\Microsoft SQL Server" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\SeleniumWebDrivers" -ErrorAction SilentlyContinue
+              # ── Java / SQL Server / Selenium ──────────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\Java" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Program Files\Microsoft SQL Server" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\SeleniumWebDrivers" -ErrorAction SilentlyContinue
 
-          # ── dotnet (pre-installed heavy SDK) ─────────────────────
-          Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
+              # ── dotnet (pre-installed heavy SDK) ─────────────────────
+              Remove-Item -Recurse -Force "C:\Program Files\dotnet" -ErrorAction SilentlyContinue
 
-          # ── Temp files ────────────────────────────────────────────
-          Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
+              # ── Temp files ────────────────────────────────────────────
+              Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
+              Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
 
-          Write-Host "Disk cleanup done!"
-          Get-PSDrive C | Select-Object Used, Free
+              Write-Host "Background cleanup done!"
+              Get-PSDrive C | Select-Object Used, Free
+          '@
+          $scriptPath = "$env:TEMP\cleanup.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "Cleanup started in background..."
 
       - name: Configure Core RDP Settings
         run: |
-          # Enable Remote Desktop and disable Network Level Authentication (if needed)
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
-
-          # Remove any existing rule with the same name to avoid duplication
           netsh advfirewall firewall delete rule name="RDP-Tailscale" || echo "No existing rule"
-         
-          # For testing, allow any incoming connection on port 3389
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
-
-          # (Optional) Restart the Remote Desktop service to ensure changes take effect
           Restart-Service -Name TermService -Force
-
 
       - name: Create RDP User with Secure Password
         run: |
+          function Test-Complexity($pw) {
+              $pw.Length -ge 8 -and
+              $pw -cmatch '[A-Z]' -and
+              $pw -cmatch '[a-z]' -and
+              $pw -match '[0-9]' -and
+              $pw -match '[^A-Za-z0-9]'
+          }
+
+          function New-AutoPassword {
+              $upper   = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+              $lower   = 'abcdefghjkmnpqrstuvwxyz'
+              $digits  = '23456789'
+              $symbols = '!@#$%^&*-_=+'
+              $all     = $upper + $lower + $digits + $symbols
+              do {
+                  $chars = @(
+                      $upper[(Get-Random -Max $upper.Length)],
+                      $lower[(Get-Random -Max $lower.Length)],
+                      $digits[(Get-Random -Max $digits.Length)],
+                      $symbols[(Get-Random -Max $symbols.Length)]
+                  )
+                  4..11 | ForEach-Object { $chars += $all[(Get-Random -Max $all.Length)] }
+                  $pw = -join ($chars | Get-Random -Count $chars.Count)
+              } while (-not (Test-Complexity $pw))
+              return $pw
+          }
+
           $password = "${{ secrets.RDP_PASSWORD }}"
+
+          if (-not (Test-Complexity $password)) {
+              Write-Host "::warning::RDP_PASSWORD missing or doesn't meet complexity — generating a secure one automatically"
+              $password = New-AutoPassword
+          } else {
+              Write-Host "RDP_PASSWORD passed complexity check, using as-is"
+          }
+
+          Write-Output "::add-mask::$password"
+
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
-
           echo "RDP_CREDS=User: RDP | Password: $password" >> $env:GITHUB_ENV
 
-          if (-not (Get-LocalUser -Name "RDP")) {
+          if (-not (Get-LocalUser -Name "RDP" -ErrorAction SilentlyContinue)) {
               Write-Error "User creation failed"
               exit 1
           }
-
+      
       - name: Install Tailscale
         run: |
-          $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          $installerPath = "$env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
-          Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
-          Remove-Item $installerPath -Force
+            # Install Tailscale
+            winget install -e --id Tailscale.Tailscale --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity 2>&1 |
+                Where-Object { $_ -notmatch '^\s*[-\\|/]\s*$' -and $_ -notmatch 'Waiting for another' } |
+                ForEach-Object { Write-Host $_ }
 
+            # Refresh PATH
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+                        [System.Environment]::GetEnvironmentVariable("Path","User")
+
+            # Check known installation paths FIRST (fast)
+            $knownPaths = @(
+                "C:\Program Files\Tailscale\tailscale.exe",
+                "C:\Program Files (x86)\Tailscale\tailscale.exe"
+            )
+            
+            $tsExe = $knownPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+            # Fallback: check PATH
+            if (-not $tsExe) {
+                $tsExe = Get-Command tailscale -ErrorAction SilentlyContinue |
+                        Select-Object -ExpandProperty Source
+            }
+
+            # Fallback: MSI download (only if winget completely failed)
+            if (-not $tsExe) {
+                Write-Host "winget failed, trying MSI fallback..."
+                $tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+                $installerPath = "$env:TEMP\tailscale.msi"
+                Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
+                $exitCode = (Start-Process msiexec.exe -ArgumentList "/i `"$installerPath`" /quiet /norestart" -Wait -PassThru).ExitCode
+                Write-Host "MSI exit code: $exitCode"
+                Remove-Item $installerPath -Force
+
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" +
+                            [System.Environment]::GetEnvironmentVariable("Path","User")
+
+                # Check known path again after MSI
+                $tsExe = $knownPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+            }
+
+            if (-not $tsExe) {
+                Write-Error "tailscale.exe not found after all attempts"
+                exit 1
+            }
+
+            Write-Host "Found Tailscale at: $tsExe"
+            echo "TAILSCALE_EXE=$tsExe" >> $env:GITHUB_ENV
 
       - name: Establish Tailscale Connection
         run: |
-          # Bring up Tailscale with the provided auth key and set a unique hostname
-          & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
+          # Use the resolved path from the previous step
+          $tsExe = $env:TAILSCALE_EXE
+          & $tsExe up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
-          # Wait for Tailscale to assign an IP
           $tsIP = $null
           $retries = 0
           while (-not $tsIP -and $retries -lt 10) {
-              $tsIP = & "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+              $tsIP = & $tsExe ip -4
               Start-Sleep -Seconds 5
               $retries++
           }
-
           if (-not $tsIP) {
               Write-Error "Tailscale IP not assigned. Exiting."
               exit 1
           }
-
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Verify RDP Accessibility
         run: |
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
-
-          # Test connectivity using Test-NetConnection against the Tailscale IP on port 3389
           $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
           if (-not $testResult.TcpTestSucceeded) {
               Write-Error "TCP connection to RDP port 3389 failed"
               exit 1
           }
-
           Write-Host "TCP connectivity successful!"
 
-      - name: Install Node.js
+      - name: Start Background Installs (winget — Node + CLI + VS Code + Extensions)
         run: |
-          winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          npm install -g yarn pnpm typescript ts-node nodemon
-          Write-Host "Node.js installed!"
+          $script = @'
+            # ── Node.js ───────────────────────────────────────────────
+            winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            npm install -g yarn pnpm typescript ts-node nodemon
+            Write-Host "[BG] Node.js done!"
 
-      - name: Install Python Packages
-        run: |
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          python --version
-          pip install requests numpy pandas flask fastapi uvicorn django python-dotenv httpx pytest black pylint
-          Write-Host "Python packages installed!"
+            # ── CLI Tools ─────────────────────────────────────────────
+            winget install -e --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
+            winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements
+            winget install -e --id Oven-sh.Bun --silent --accept-package-agreements --accept-source-agreements
+            Write-Host "[BG] CLI tools done!"
 
-      - name: Install CLI Tools
+            # ── VS Code ───────────────────────────────────────────────
+            $vsUrl = "https://update.code.visualstudio.com/latest/win32-x64/stable"
+            $installerPath = "$env:TEMP\vscode-installer.exe"
+            Invoke-WebRequest -Uri $vsUrl -OutFile $installerPath
+            Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/mergetasks=!runcode" -Wait
+            Remove-Item $installerPath -Force
+            Write-Host "[BG] VS Code installed!"
+
+            # ── Find code.cmd ─────────────────────────────────────────
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            $codePath = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+            if (-not $codePath) {
+                $candidates = @(
+                    "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+                    "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+                )
+                foreach ($c in $candidates) {
+                    if (Test-Path $c) { $codePath = $c; break }
+                }
+            }
+
+            # ── VS Code Extensions ────────────────────────────────────
+            if ($codePath) {
+                $extensions = @(
+                    "GitHub.copilot",
+                    "GitHub.vscode-github-actions",
+                    "GitHub.vscode-pull-request-github",
+                    "ms-python.python",
+                    "ms-python.vscode-pylance",
+                    "ms-python.black-formatter",
+                    "ms-toolsai.jupyter",
+                    "Google.colab",
+                    "formulahendry.auto-rename-tag",
+                    "formulahendry.auto-close-tag",
+                    "formulahendry.code-runner",
+                    "dbaeumer.vscode-eslint",
+                    "esbenp.prettier-vscode",
+                    "joy-yu.css-snippets",
+                    "pranaygp.vscode-css-peek",
+                    "stivo.tailwind-fold",
+                    "bradlc.vscode-tailwindcss",
+                    "dsznajder.es7-react-js-snippets",
+                    "christian-kohler.path-intellisense",
+                    "christian-kohler.npm-intellisense",
+                    "WallabyJs.quokka-vscode",
+                    "PKief.material-icon-theme",
+                    "eamodio.gitlens",
+                    "ms-vsliveshare.vsliveshare",
+                    "janisdd.vscode-edit-csv",
+                    "mikestead.dotenv",
+                    "humao.rest-client",
+                    "rangav.vscode-thunder-client",
+                    "Prisma.prisma",
+                    "ms-azuretools.vscode-docker",
+                    "ritwickdey.LiveServer",
+                    "streetsidesoftware.code-spell-checker"
+                )
+                foreach ($ext in $extensions) {
+                    Write-Host "[BG] Installing: $ext"
+                    & $codePath --install-extension $ext --force 2>&1
+                }
+                Write-Host "[BG] All VS Code extensions done!"
+            } else {
+                Write-Host "[BG] WARNING: code.cmd not found, skipping extensions"
+            }
+          '@
+          $scriptPath = "$env:TEMP\install_winget.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "Winget installs started in background..."
+
+      - name: Start Background Installs (pip — Python Packages)
         run: |
-          winget install -e --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
-          winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements
-          winget install -e --id Oven-sh.Bun --silent --accept-package-agreements --accept-source-agreements
-          Write-Host "CLI tools installed!"
+          $script = @'
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            pip install requests numpy pandas flask fastapi uvicorn django python-dotenv httpx pytest black pylint
+            Write-Host "[BG] Python packages done!"
+          '@
+          $scriptPath = "$env:TEMP\install_pip.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "pip installs started in background..."
 
       - name: Configure Git
         run: |
           $gitName = "${{ secrets.GIT_USERNAME }}"
           $gitEmail = "${{ secrets.GIT_EMAIL }}"
-
           if (-not $gitName -or -not $gitEmail) {
               Write-Host "GIT_USERNAME or GIT_EMAIL secret not set, skipping Git config..."
               exit 0
           }
-
           git config --global user.name "$gitName"
           git config --global user.email "$gitEmail"
           git config --global core.autocrlf false
           git config --global init.defaultBranch main
           Write-Host "Git configured for $gitName!"
-
-
-      - name: Install VS Code & Extensions
-        run: |
-          # Download and install VS Code
-          $vsUrl = "https://update.code.visualstudio.com/latest/win32-x64/stable"
-          $installerPath = "$env:TEMP\vscode-installer.exe"
-          Invoke-WebRequest -Uri $vsUrl -OutFile $installerPath
-          Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/mergetasks=!runcode" -Wait
-          Remove-Item $installerPath -Force
-          Write-Host "VS Code installed!"
-
-          # Refresh PATH so the new install is visible
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-          # Dynamically find code.cmd — handles any install location
-          $codePath = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-
-          if (-not $codePath) {
-              # Fallback: search common locations
-              $candidates = @(
-                  "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
-                  "C:\Program Files\Microsoft VS Code\bin\code.cmd"
-              )
-              foreach ($c in $candidates) {
-                  if (Test-Path $c) { $codePath = $c; break }
-              }
-          }
-
-          if (-not $codePath) {
-              Write-Error "Could not find code.cmd. VS Code may not have installed correctly."
-              exit 1
-          }
-
-          Write-Host "Using VS Code at: $codePath"
-
-          # All extensions to install
-          $extensions = @(
-              # GitHub
-              "GitHub.copilot",
-              "GitHub.vscode-github-actions",
-              "GitHub.vscode-pull-request-github",
-
-              # Python / AI / Notebooks
-              "ms-python.python",
-              "ms-python.vscode-pylance",
-              "ms-python.black-formatter",
-              "ms-toolsai.jupyter",
-              "Google.colab",   
-
-              # HTML / CSS / JS
-              "formulahendry.auto-rename-tag",
-              "formulahendry.auto-close-tag",
-              "formulahendry.code-runner",
-              "dbaeumer.vscode-eslint",
-              "esbenp.prettier-vscode",
-              "joy-yu.css-snippets",
-              "pranaygp.vscode-css-peek",
-              "stivo.tailwind-fold",
-              "bradlc.vscode-tailwindcss",
-              "dsznajder.es7-react-js-snippets",
-
-              # IntelliSense / Helpers
-              "christian-kohler.path-intellisense",
-              "christian-kohler.npm-intellisense",
-              "WallabyJs.quokka-vscode",
-
-              # Productivity / UI
-              "PKief.material-icon-theme",
-              "eamodio.gitlens",
-              "ms-vsliveshare.vsliveshare",
-              "janisdd.vscode-edit-csv",
-              "mikestead.dotenv",
-              "humao.rest-client",
-              "rangav.vscode-thunder-client",
-
-              # Full Stack extras
-              "Prisma.prisma",
-              "ms-azuretools.vscode-docker",
-              "ritwickdey.LiveServer",
-              "streetsidesoftware.code-spell-checker"
-          )
-
-          # Install each extension
-          foreach ($ext in $extensions) {
-              Write-Host "Installing: $ext"
-              & $codePath --install-extension $ext --force 2>&1
-          }
-
-          Write-Host "All extensions installed!"
 
       - name: Maintain Connection
         run: |
@@ -324,8 +379,8 @@ jobs:
           Write-Host "Username: RDP"
           Write-Host "Password: $env:RDP_CREDS"
           Write-Host "==================`n"
+          Write-Host "NOTE: Node, Python, VS Code still installing in background — give it a few minutes after connecting."
 
-          # Keep runner active indefinitely (or until manually cancelled)
           while ($true) {
               Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
               Start-Sleep -Seconds 300
