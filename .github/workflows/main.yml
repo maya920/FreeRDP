@@ -398,14 +398,31 @@ jobs:
 
             if ($env:INSTALL_VSCODE -eq 'true') {
               Write-Host "[BG] Installing Visual Studio Code..."
-              winget install -e --id Microsoft.VisualStudioCode --silent --accept-package-agreements --accept-source-agreements --scope machine
+              $wingetArgs = @(
+                  'install',
+                  '-e',
+                  '--id',
+                  'Microsoft.VisualStudioCode',
+                  '--silent',
+                  '--accept-package-agreements',
+                  '--accept-source-agreements',
+                  '--scope',
+                  'machine'
+              )
+              & winget @wingetArgs > $null 2>&1
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Error "[BG] VS Code install failed (winget exit code $LASTEXITCODE)"
+                  exit $LASTEXITCODE
+              }
+              Write-Host "[BG] Visual Studio Code installed."
+              Write-Host "[BG] Refreshing PATH and verifying installed code.cmd..."
+              $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
 
               $vsCodeCandidates = @(
                   "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
                   "C:\Program Files\Microsoft VS Code\bin\code.cmd"
               )
 
-              $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
               $codeCmd = $vsCodeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 
               if (-not $codeCmd) {
@@ -572,9 +589,9 @@ jobs:
               )
 
               $existingExts = & $codeCmd --list-extensions
-              if ($existingExts -contains "github.copilot-chat") {
-                  Write-Host "[BG] Copilot Chat is built-in, skipping GitHub.copilot"
-                  $extensions = $extensions | Where-Object { $_ -ne "GitHub.copilot" }
+              if ($existingExts -match 'copilot') {
+                  Write-Host "[BG] Copilot is already present, skipping GitHub.copilot"
+                  $extensions = $extensions | Where-Object { $_ -notmatch 'copilot' }
               }
 
               foreach ($ext in $extensions) {
