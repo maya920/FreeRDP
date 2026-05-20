@@ -1,0 +1,18 @@
+# Local env file
+.env
+
+# VS Code settings
+.vscode/
+
+# Editor backups
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+.DS_Store

@@ -2,6 +2,32 @@ name: RDP
 
 on:
   workflow_dispatch:
+    inputs:
+      install_vscode:
+        description: 'Install Visual Studio Code in background'
+        required: false
+        default: true
+        type: boolean
+      install_extensions:
+        description: 'Install VS Code extensions'
+        required: false
+        default: true
+        type: boolean
+      install_node:
+        description: 'Install Node.js and npm packages in background'
+        required: false
+        default: true
+        type: boolean
+      install_cli:
+        description: 'Install CLI tools in background'
+        required: false
+        default: true
+        type: boolean
+      install_python:
+        description: 'Install Python packages in background'
+        required: false
+        default: true
+        type: boolean
 
 jobs:
 
@@ -14,6 +40,21 @@ jobs:
       - name: Start Background Cleanup
         run: |
           $script = @'
+              $statusFile = "C:\setup_status.txt"
+              function Write-Status($component, $state) {
+                "[$([DateTime]::Now.ToString('HH:mm:ss'))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+              }
+              function Send-Notify($title, $msg) {
+                msg * "$title`: $msg" 2>$null | Out-Null
+              }
+
+              # Initialize status file (overwrite with fresh start)
+              @(
+                  "[STEPS] VS Code | Node.js | CLI Tools | Python | Terminal | Cleanup"
+              ) | Out-File $statusFile -Encoding UTF8
+
+              Write-Status "Cleanup" "INSTALL_STARTED"
+
               # ── Android ──────────────────────────────────────────────
               Remove-Item -Recurse -Force "C:\Program Files\Android" -ErrorAction SilentlyContinue
               Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
@@ -113,6 +154,35 @@ jobs:
               Remove-Item -Recurse -Force "C:\Windows\Temp\*" -ErrorAction SilentlyContinue
               Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp\*" -ErrorAction SilentlyContinue
 
+              # ── Cleanup leftover desktop shortcuts ─────────────────────
+              $shortcutPatterns = @(
+                  "*Firefox*", "*Firefox*",
+                  "*Unity*", "*Unity Hub*",
+                  "*R 4*", "*Rtools*",
+                  "*Android*", "*Android Studio*",
+                  "*Azure*", "*Cosmos*", "*Service Fabric*",
+                  "*Microsoft Visual Studio*", "*Visual Studio 20*"
+              )
+              $locations = @(
+                  "C:\Users\Public\Desktop",
+                  "C:\Users\runneradmin\Desktop",
+                  "C:\Users\RDP\Desktop",
+                  "C:\ProgramData\Microsoft\Windows\Start Menu\Programs"
+              )
+              $removed = 0
+              foreach ($loc in $locations) {
+                  if (-not (Test-Path $loc)) { continue }
+                  foreach ($pattern in $shortcutPatterns) {
+                      Get-ChildItem "$loc\$pattern*" -Include *.lnk, *.url -ErrorAction SilentlyContinue | ForEach-Object {
+                          Remove-Item $_.FullName -Force -ErrorAction SilentlyContinue
+                          $removed++
+                      }
+                  }
+              }
+              if ($removed -gt 0) { Write-Status "Cleanup" "SHORTCUTS_REMOVED"; Write-Host "Removed $removed leftover shortcut(s)" }
+
+              Write-Status "Cleanup" "INSTALL_DONE"
+              Send-Notify "Cleanup" "Disk space freed."
               Write-Host "Background cleanup done!"
               Get-PSDrive C | Select-Object Used, Free
           '@
@@ -172,15 +242,51 @@ jobs:
 
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           New-LocalUser -Name "RDP" -Password $securePass -AccountNeverExpires
+          Set-LocalUser -Name "RDP" -PasswordNeverExpires $true
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
+
+          try {
+              $credential = New-Object System.Management.Automation.PSCredential("RDP", $securePass)
+              Start-Process -FilePath "$env:SystemRoot\System32\cmd.exe" -ArgumentList "/c exit" -Credential $credential -LoadUserProfile -WindowStyle Hidden -NoNewWindow -Wait
+              Write-Host "RDP user profile pre-created successfully."
+          } catch {
+              Write-Host "::warning::Failed to pre-create RDP profile: $($_.Exception.Message)"
+          }
+
           echo "RDP_CREDS=User: RDP | Password: $password" >> $env:GITHUB_ENV
 
           if (-not (Get-LocalUser -Name "RDP" -ErrorAction SilentlyContinue)) {
               Write-Error "User creation failed"
               exit 1
           }
-      
+
+      - name: Configure System Settings
+        run: |
+          # ── Enable Clipboard History for all new users ──────────────
+          $defaultHivePath = "C:\Users\Default\NTUSER.DAT"
+          if (Test-Path $defaultHivePath) {
+              reg.exe load "HKU\DefaultUser" "$defaultHivePath" 2>$null
+              if (Test-Path "HKU:\DefaultUser") {
+                  New-Item -Path "HKU:\DefaultUser\Software\Microsoft\Clipboard" -Force | Out-Null
+                  Set-ItemProperty -Path "HKU:\DefaultUser\Software\Microsoft\Clipboard" -Name "EnableClipboardHistory" -Value 1 -Type DWord -Force
+                  reg.exe unload "HKU\DefaultUser" 2>$null
+                  Write-Host "Clipboard history enabled (Win+V works in RDP)"
+              } else {
+                  Write-Host "Default user hive mounted, but HKU:\DefaultUser is unavailable. Clipboard history will use Windows default."
+              }
+          } else {
+              Write-Host "Default user hive file not found, clipboard history will use Windows default"
+          }
+
+          # ── Set Timezone to India Standard Time (UTC+5:30) ──────────
+          Set-TimeZone -Id "India Standard Time" -ErrorAction SilentlyContinue
+          Write-Host "Timezone set to India Standard Time (UTC+5:30)"
+
+          # ── High Performance power scheme ────────────────────────────
+          powercfg /setactive "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c" 2>$null
+          Write-Host "Power scheme set to High Performance"
+
       - name: Install Tailscale
         run: |
             # Install Tailscale
@@ -260,104 +366,6 @@ jobs:
           }
           Write-Host "TCP connectivity successful!"
 
-      - name: Start Background Installs (winget — Node + CLI + VS Code + Extensions)
-        run: |
-          $script = @'
-            # ── Node.js ───────────────────────────────────────────────
-            winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-            npm install -g yarn pnpm typescript ts-node nodemon
-            Write-Host "[BG] Node.js done!"
-
-            # ── CLI Tools ─────────────────────────────────────────────
-            winget install -e --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements
-            winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements
-            winget install -e --id Oven-sh.Bun --silent --accept-package-agreements --accept-source-agreements
-            Write-Host "[BG] CLI tools done!"
-
-            # ── VS Code ───────────────────────────────────────────────
-            $vsUrl = "https://update.code.visualstudio.com/latest/win32-x64/stable"
-            $installerPath = "$env:TEMP\vscode-installer.exe"
-            Invoke-WebRequest -Uri $vsUrl -OutFile $installerPath
-            Start-Process -FilePath $installerPath -ArgumentList "/verysilent", "/norestart", "/mergetasks=!runcode" -Wait
-            Remove-Item $installerPath -Force
-            Write-Host "[BG] VS Code installed!"
-
-            # ── Find code.cmd ─────────────────────────────────────────
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-            $codePath = Get-Command code -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-            if (-not $codePath) {
-                $candidates = @(
-                    "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
-                    "C:\Program Files\Microsoft VS Code\bin\code.cmd"
-                )
-                foreach ($c in $candidates) {
-                    if (Test-Path $c) { $codePath = $c; break }
-                }
-            }
-
-            # ── VS Code Extensions ────────────────────────────────────
-            if ($codePath) {
-                $extensions = @(
-                    "GitHub.copilot",
-                    "GitHub.vscode-github-actions",
-                    "GitHub.vscode-pull-request-github",
-                    "ms-python.python",
-                    "ms-python.vscode-pylance",
-                    "ms-python.black-formatter",
-                    "ms-toolsai.jupyter",
-                    "Google.colab",
-                    "formulahendry.auto-rename-tag",
-                    "formulahendry.auto-close-tag",
-                    "formulahendry.code-runner",
-                    "dbaeumer.vscode-eslint",
-                    "esbenp.prettier-vscode",
-                    "joy-yu.css-snippets",
-                    "pranaygp.vscode-css-peek",
-                    "stivo.tailwind-fold",
-                    "bradlc.vscode-tailwindcss",
-                    "dsznajder.es7-react-js-snippets",
-                    "christian-kohler.path-intellisense",
-                    "christian-kohler.npm-intellisense",
-                    "WallabyJs.quokka-vscode",
-                    "PKief.material-icon-theme",
-                    "eamodio.gitlens",
-                    "ms-vsliveshare.vsliveshare",
-                    "janisdd.vscode-edit-csv",
-                    "mikestead.dotenv",
-                    "humao.rest-client",
-                    "rangav.vscode-thunder-client",
-                    "Prisma.prisma",
-                    "ms-azuretools.vscode-docker",
-                    "ritwickdey.LiveServer",
-                    "streetsidesoftware.code-spell-checker"
-                )
-                foreach ($ext in $extensions) {
-                    Write-Host "[BG] Installing: $ext"
-                    & $codePath --install-extension $ext --force 2>&1
-                }
-                Write-Host "[BG] All VS Code extensions done!"
-            } else {
-                Write-Host "[BG] WARNING: code.cmd not found, skipping extensions"
-            }
-          '@
-          $scriptPath = "$env:TEMP\install_winget.ps1"
-          $script | Out-File $scriptPath -Encoding UTF8
-          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
-          Write-Host "Winget installs started in background..."
-
-      - name: Start Background Installs (pip — Python Packages)
-        run: |
-          $script = @'
-            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-            pip install requests numpy pandas flask fastapi uvicorn django python-dotenv httpx pytest black pylint
-            Write-Host "[BG] Python packages done!"
-          '@
-          $scriptPath = "$env:TEMP\install_pip.ps1"
-          $script | Out-File $scriptPath -Encoding UTF8
-          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
-          Write-Host "pip installs started in background..."
-
       - name: Configure Git
         run: |
           $gitName = "${{ secrets.GIT_USERNAME }}"
@@ -366,22 +374,478 @@ jobs:
               Write-Host "GIT_USERNAME or GIT_EMAIL secret not set, skipping Git config..."
               exit 0
           }
-          git config --global user.name "$gitName"
-          git config --global user.email "$gitEmail"
-          git config --global core.autocrlf false
-          git config --global init.defaultBranch main
+          git config --system user.name "$gitName"
+          git config --system user.email "$gitEmail"
+          git config --system core.autocrlf false
+          git config --system init.defaultBranch main
           Write-Host "Git configured for $gitName!"
+
+      - name: Start Background Installs (VS Code & Extensions)
+        if: ${{ github.event.inputs.install_vscode == 'true' || github.event.inputs.install_extensions == 'true' }}
+        run: |
+          $env:INSTALL_VSCODE = "${{ github.event.inputs.install_vscode }}"
+          $env:INSTALL_EXTENSIONS = "${{ github.event.inputs.install_extensions }}"
+          $script = @'
+            $statusFile = "C:\setup_status.txt"
+            function Write-Status($component, $state) {
+              "[$([DateTime]::Now.ToString('HH:mm:ss'))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+            }
+            function Send-Notify($title, $msg) {
+              msg * "$title`: $msg" 2>$null | Out-Null
+            }
+
+            Write-Status "VS Code" "INSTALL_STARTED"
+
+            if ($env:INSTALL_VSCODE -eq 'true') {
+              Write-Host "[BG] Installing Visual Studio Code..."
+              winget install -e --id Microsoft.VisualStudioCode --silent --accept-package-agreements --accept-source-agreements --scope machine
+
+              $vsCodeCandidates = @(
+                  "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+                  "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+              )
+
+              $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+              $codeCmd = $vsCodeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+              if (-not $codeCmd) {
+                  Write-Error "[BG] VS Code installation failed: code.cmd not found"
+                  exit 1
+              }
+
+              $version = (& $codeCmd --version)[0]
+              Write-Host "[BG] VS Code version: $version"
+
+              $vsCodeBinDir = Split-Path $codeCmd -Parent
+              $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+              if ($machinePath -notlike "*$vsCodeBinDir*") {
+                  [System.Environment]::SetEnvironmentVariable("Path", $machinePath + ";" + $vsCodeBinDir, "Machine")
+              }
+              Write-Host "[BG] Added $vsCodeBinDir to system PATH"
+
+              $vsCodeExe = (Split-Path $codeCmd -Parent) + "\..\Code.exe"
+
+              # ── Desktop shortcut with WScript fallback ──────────────────
+              foreach ($user in @("runneradmin", "RDP")) {
+                  $userDesktop = "C:\Users\$user\Desktop"
+                  if (-not (Test-Path $userDesktop)) {
+                      New-Item -ItemType Directory -Path $userDesktop -Force | Out-Null
+                  }
+                  $ok = $false
+                  try {
+                      $wshell = New-Object -ComObject WScript.Shell
+                      $shortcut = $wshell.CreateShortcut("$userDesktop\Visual Studio Code.lnk")
+                      $shortcut.TargetPath = $vsCodeExe
+                      $shortcut.WorkingDirectory = "%USERPROFILE%"
+                      $shortcut.Description = "Visual Studio Code"
+                      $shortcut.Save()
+                      Write-Host "[BG] Desktop shortcut created for $user"
+                      $ok = $true
+                  } catch {
+                      Write-Host "[BG] WScript shortcut failed for $user, creating .url fallback"
+                  }
+                  if (-not $ok) {
+                      $urlContent = "[InternetShortcut]`nURL=file:///$($vsCodeExe.Replace('\','/'))`nIconIndex=0`nIconFile=$vsCodeExe"
+                      Set-Content -Path "$userDesktop\Visual Studio Code.url" -Value $urlContent -Encoding UTF8
+                      Write-Host "[BG] .url fallback shortcut created for $user"
+                  }
+              }
+
+              # ── Pin to current user's (runneradmin) taskbar ────────────────
+              $startMenuPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs"
+              try {
+                  $wshell = New-Object -ComObject WScript.Shell
+                  $stShortcut = $wshell.CreateShortcut("$startMenuPath\Visual Studio Code.lnk")
+                  $stShortcut.TargetPath = $vsCodeExe
+                  $stShortcut.Save()
+                  try {
+                      $shell = New-Object -ComObject Shell.Application
+                      $folder = $shell.Namespace($startMenuPath)
+                      $item = $folder.ParseName("Visual Studio Code.lnk")
+                      if ($item) {
+                          $verb = $item.Verbs() | Where-Object { $_.Name -match "(?i)pin to taskbar" }
+                          if ($verb) { $verb.DoIt(); Write-Host "[BG] VS Code pinned to taskbar" }
+                      }
+                  } catch { Write-Host "[BG] Taskbar pin skipped (current user)" }
+              } catch { Write-Host "[BG] Start menu shortcut skipped" }
+
+              # ── Schedule pinning for RDP user (runs on their first logon) ─
+              $rdpPassword = $null
+              if ($env:RDP_CREDS -match 'Password: (.+)$') { $rdpPassword = $Matches[1] }
+              if ($rdpPassword) {
+                  $pinScript = @'
+                    $codeCmd = "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+                    $vsCodeExe = "C:\Program Files\Microsoft VS Code\Code.exe"
+                    $sp = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs"
+                    $retries = 0
+                    while ((-not (Test-Path $vsCodeExe)) -and $retries -lt 30) { Start-Sleep -Seconds 10; $retries++ }
+                    if (Test-Path $vsCodeExe) {
+                        try {
+                            $w = New-Object -ComObject WScript.Shell
+                            $s = $w.CreateShortcut("$sp\Visual Studio Code.lnk"); $s.TargetPath = $vsCodeExe; $s.Save()
+                            $sh = New-Object -ComObject Shell.Application
+                            $i1 = $sh.Namespace($sp).ParseName("Visual Studio Code.lnk")
+                            if ($i1) { $v = $i1.Verbs() | Where-Object { $_.Name -match "(?i)pin to taskbar" }; if ($v) { $v.DoIt() } }
+                        } catch { }
+                        try {
+                            $i2 = $sh.Namespace($sp).ParseName("Windows Terminal.lnk")
+                            if ($i2) { $v = $i2.Verbs() | Where-Object { $_.Name -match "(?i)pin to taskbar" }; if ($v) { $v.DoIt() } }
+                        } catch { }
+                    }
+            '@
+                  $pinScriptPath = "C:\setup\pin_rdp_taskbar.ps1"
+                  New-Item -ItemType Directory -Path "C:\setup" -Force | Out-Null
+                  $pinScript | Out-File $pinScriptPath -Encoding UTF8
+                  $securePass = ConvertTo-SecureString $rdpPassword -AsPlainText -Force
+                  $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -File `"$pinScriptPath`" -WindowStyle Hidden"
+                  $trigger = New-ScheduledTaskTrigger -AtLogOn -User "RDP"
+                  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -Hidden
+                  Register-ScheduledTask -TaskName "RDP-PinTaskbar" -Action $action -Trigger $trigger -Settings $settings -User "RDP" -Password $securePass -RunLevel Limited 2>$null | Out-Null
+                  Write-Host "[BG] Scheduled RDP taskbar pin (pins VS Code + Terminal on login)"
+              }
+
+              # ── VS Code Settings ─────────────────────────────────────────
+              $settingsDir = "C:\Users\RDP\AppData\Roaming\Code\User"
+              New-Item -ItemType Directory -Path $settingsDir -Force | Out-Null
+              $settings = @{
+                  "editor.fontSize" = 16
+                  "files.autoSave" = "afterDelay"
+                  "files.autoSaveDelay" = 1000
+                  "explorer.compactFolders" = $false
+              }
+              $settings | ConvertTo-Json | Set-Content -Path "$settingsDir\settings.json" -Encoding UTF8
+              Write-Host "[BG] VS Code settings written for RDP user"
+            }
+
+            if ($env:INSTALL_EXTENSIONS -eq 'true') {
+              if (-not $codeCmd) {
+                  $vsCodeCandidates = @(
+                      "$env:LOCALAPPDATA\Programs\Microsoft VS Code\bin\code.cmd",
+                      "C:\Program Files\Microsoft VS Code\bin\code.cmd"
+                  )
+                  $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                  $codeCmd = $vsCodeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+              }
+
+              if (-not $codeCmd) {
+                  Write-Error "[BG] VS Code not found, cannot install extensions"
+                  exit 1
+              }
+
+              $extensions = @(
+                  "GitHub.copilot",
+                  "GitHub.vscode-github-actions",
+                  "GitHub.vscode-pull-request-github",
+                  "sst-dev.opencode",
+                  "ms-python.python",
+                  "ms-python.vscode-pylance",
+                  "ms-python.black-formatter",
+                  "ms-toolsai.jupyter",
+                  "Google.colab",
+                  "formulahendry.auto-rename-tag",
+                  "formulahendry.auto-close-tag",
+                  "formulahendry.code-runner",
+                  "dbaeumer.vscode-eslint",
+                  "esbenp.prettier-vscode",
+                  "joy-yu.css-snippets",
+                  "pranaygp.vscode-css-peek",
+                  "stivo.tailwind-fold",
+                  "bradlc.vscode-tailwindcss",
+                  "dsznajder.es7-react-js-snippets",
+                  "christian-kohler.path-intellisense",
+                  "christian-kohler.npm-intellisense",
+                  "WallabyJs.quokka-vscode",
+                  "WallabyJs.wallaby-vscode",
+                  "chakrounanas.turbo-console-log",
+                  "naumovs.color-highlight",
+                  "PKief.material-icon-theme",
+                  "eamodio.gitlens",
+                  "ms-vsliveshare.vsliveshare",
+                  "janisdd.vscode-edit-csv",
+                  "mikestead.dotenv",
+                  "humao.rest-client",
+                  "rangav.vscode-thunder-client",
+                  "Prisma.prisma",
+                  "ms-azuretools.vscode-docker",
+                  "ritwickdey.LiveServer",
+                  "streetsidesoftware.code-spell-checker"
+              )
+
+              $existingExts = & $codeCmd --list-extensions
+              if ($existingExts -contains "github.copilot-chat") {
+                  Write-Host "[BG] Copilot Chat is built-in, skipping GitHub.copilot"
+                  $extensions = $extensions | Where-Object { $_ -ne "GitHub.copilot" }
+              }
+
+              foreach ($ext in $extensions) {
+                  if ($existingExts -contains $ext) {
+                      Write-Host "[BG] Already installed: $ext"
+                  } else {
+                      Write-Host "[BG] Installing extension: $ext"
+                      & $codeCmd --install-extension $ext --force 2>&1
+                  }
+              }
+
+              $rdpExtensions = "C:\Users\RDP\.vscode\extensions"
+              $srcExtensions = "$env:USERPROFILE\.vscode\extensions"
+              if (Test-Path $srcExtensions) {
+                  New-Item -ItemType Directory -Path $rdpExtensions -Force | Out-Null
+                  Copy-Item -Path "$srcExtensions\*" -Destination $rdpExtensions -Recurse -Force
+                  Write-Host "[BG] Copied extensions to RDP user profile"
+              }
+
+              Write-Host "[BG] VS Code extensions installed!"
+            }
+
+            Write-Status "VS Code" "INSTALL_DONE"
+            Send-Notify "VS Code" "VS Code + extensions ready. RDP pin scheduled."
+            Write-Host "[BG] Visual Studio Code setup complete!"
+          '@
+          $scriptPath = "$env:TEMP\install_vscode_bg.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "VS Code & Extension background installs started..."
+
+      - name: Start Background Installs (winget — Node.js + npm)
+        if: ${{ github.event.inputs.install_node == 'true' }}
+        run: |
+          $script = @'
+            $statusFile = "C:\setup_status.txt"
+            function Write-Status($component, $state) {
+              "[$([DateTime]::Now.ToString("HH:mm:ss"))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+            }
+            function Send-Notify($title, $msg) {
+              msg * "$title`: $msg" 2>$null | Out-Null
+            }
+
+            Write-Status "Node.js" "INSTALL_STARTED"
+            Write-Host "[BG] Installing Node.js..."
+
+            # ── Node.js ───────────────────────────────────────────────
+            winget install -e --id OpenJS.NodeJS --silent --accept-package-agreements --accept-source-agreements --scope machine
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            npm install -g yarn pnpm typescript ts-node nodemon
+
+            Write-Status "Node.js" "INSTALL_DONE"
+            Send-Notify "Node.js" "Node + npm global packages installed."
+            Write-Host "[BG] Node.js + npm packages done!"
+          '@
+          $scriptPath = "$env:TEMP\install_node_bg.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "Node background installs started..."
+
+      - name: Start Background Installs (winget — CLI tools)
+        if: ${{ github.event.inputs.install_cli == 'true' }}
+        run: |
+          $script = @'
+            $statusFile = "C:\setup_status.txt"
+            function Write-Status($component, $state) {
+              "[$([DateTime]::Now.ToString("HH:mm:ss"))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+            }
+            function Send-Notify($title, $msg) {
+              msg * "$title`: $msg" 2>$null | Out-Null
+            }
+
+            Write-Status "CLI Tools" "INSTALL_STARTED"
+            Write-Host "[BG] Installing CLI tools..."
+
+            # ── CLI Tools ─────────────────────────────────────────────
+            winget install -e --id GitHub.cli --silent --accept-package-agreements --accept-source-agreements --scope machine
+            winget install -e --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements --scope machine
+            winget upgrade --id JernejSimoncic.Wget --silent --accept-package-agreements --accept-source-agreements 2>$null | Out-Null
+            winget install -e --id Oven-sh.Bun --silent --accept-package-agreements --accept-source-agreements --scope machine
+
+            Write-Status "CLI Tools" "INSTALL_DONE"
+            Send-Notify "CLI Tools" "gh, wget, bun installed."
+            Write-Host "[BG] CLI tools done!"
+          '@
+          $scriptPath = "$env:TEMP\install_cli_bg.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "CLI background installs started..."
+
+      - name: Start Background Installs (pip — Python Packages)
+        if: ${{ github.event.inputs.install_python == 'true' }}
+        run: |
+          $script = @'
+            $statusFile = "C:\setup_status.txt"
+            function Write-Status($component, $state) {
+              "[$([DateTime]::Now.ToString("HH:mm:ss"))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+            }
+            function Send-Notify($title, $msg) {
+              msg * "$title`: $msg" 2>$null | Out-Null
+            }
+
+            Write-Status "Python Packages" "INSTALL_STARTED"
+            Write-Host "[BG] Installing Python packages..."
+
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            python -m pip install --upgrade pip
+            python -m pip install requests numpy pandas flask fastapi uvicorn django python-dotenv httpx pytest black pylint
+
+            Write-Status "Python Packages" "INSTALL_DONE"
+            Send-Notify "Python Packages" "pip installs completed."
+            Write-Host "[BG] Python packages done!"
+          '@
+          $scriptPath = "$env:TEMP\install_pip_bg.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "pip background installs started..."
+
+      - name: Start Background Installs (Windows Terminal)
+        run: |
+          $script = @'
+            $statusFile = "C:\setup_status.txt"
+            function Write-Status($component, $state) {
+              "[$([DateTime]::Now.ToString("HH:mm:ss"))] $state`: $component" | Out-File $statusFile -Append -Encoding UTF8
+            }
+            function Send-Notify($title, $msg) {
+              msg * "$title`: $msg" 2>$null | Out-Null
+            }
+
+            Write-Status "Windows Terminal" "INSTALL_STARTED"
+            Write-Host "[BG] Installing Windows Terminal..."
+
+            winget install -e --id Microsoft.WindowsTerminal --silent --accept-package-agreements --accept-source-agreements --scope machine 2>$null | Out-Null
+
+            # Find Terminal executable
+            $termCandidates = @(
+                "$env:LOCALAPPDATA\Microsoft\WindowsApps\wt.exe",
+                "C:\Program Files\WindowsApps\*WindowsTerminal*\wt.exe"
+            )
+            $termExe = $null
+            foreach ($c in $termCandidates) {
+                $found = Get-ChildItem $c -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+                if ($found) { $termExe = $found; break }
+            }
+            if (-not $termExe) { $termExe = "wt.exe" }
+
+            # Desktop shortcut for RDP
+            $rdpDesktop = "C:\Users\RDP\Desktop"
+            if (-not (Test-Path $rdpDesktop)) { New-Item -ItemType Directory -Path $rdpDesktop -Force | Out-Null }
+            try {
+                $wshell = New-Object -ComObject WScript.Shell
+                $shortcut = $wshell.CreateShortcut("$rdpDesktop\Windows Terminal.lnk")
+                $shortcut.TargetPath = $termExe
+                $shortcut.Save()
+                Write-Host "[BG] Terminal shortcut on RDP desktop"
+
+                # Pin to current user's taskbar (RDP pin handled by scheduled task)
+                $startMenuPath = "C:\ProgramData\Microsoft\Windows\Start Menu\Programs"
+                $stShortcut = $wshell.CreateShortcut("$startMenuPath\Windows Terminal.lnk")
+                $stShortcut.TargetPath = $termExe
+                $stShortcut.Save()
+                try {
+                    $shell = New-Object -ComObject Shell.Application
+                    $folder = $shell.Namespace($startMenuPath)
+                    $item = $folder.ParseName("Windows Terminal.lnk")
+                    if ($item) {
+                        $verbs = $item.Verbs()
+                        foreach ($v in $verbs) {
+                            if ($v.Name -match "(?i)pin to taskbar") { $v.DoIt(); break }
+                        }
+                    }
+                } catch { Write-Host "[BG] Taskbar pin skipped" }
+            } catch { Write-Host "[BG] Terminal shortcut creation skipped" }
+
+            Write-Status "Windows Terminal" "INSTALL_DONE"
+            Send-Notify "Windows Terminal" "Installed with desktop shortcut."
+            Write-Host "[BG] Windows Terminal setup done!"
+          '@
+          $scriptPath = "$env:TEMP\install_terminal_bg.ps1"
+          $script | Out-File $scriptPath -Encoding UTF8
+          Start-Process powershell -ArgumentList "-ExecutionPolicy Bypass -File `"$scriptPath`"" -WindowStyle Hidden
+          Write-Host "Windows Terminal background install started..."
 
       - name: Maintain Connection
         run: |
+          $statusFile = "C:\setup_status.txt"
+          $startTime = Get-Date
+          $lastLineCount = 0
+          $warn330 = $false
+          $warn350 = $false
+          $billingDone = $false
+          $heartbeatHour = -1
+
           Write-Host "`n=== RDP ACCESS ==="
           Write-Host "Address: $env:TAILSCALE_IP"
           Write-Host "Username: RDP"
           Write-Host "Password: $env:RDP_CREDS"
           Write-Host "==================`n"
-          Write-Host "NOTE: Node, Python, VS Code still installing in background — give it a few minutes after connecting."
+          Write-Host "All installs running in background — status updates appear below as they complete.`n"
 
           while ($true) {
-              Write-Host "[$(Get-Date)] RDP Active - Use Ctrl+C in workflow to terminate"
-              Start-Sleep -Seconds 300
+              $elapsedMin = [int](Get-Date).Subtract($startTime).TotalMinutes
+              $currentHour = [math]::Floor($elapsedMin / 60)
+
+              # ── Status file (show new completions only) ─────────────
+              if (Test-Path $statusFile) {
+                  $lines = Get-Content $statusFile
+                  if ($lines.Count -gt $lastLineCount) {
+                      $newLines = $lines[$lastLineCount..($lines.Count-1)]
+                      foreach ($line in $newLines) {
+                          if ($line -match 'INSTALL_DONE') {
+                              Write-Host "  ✅ $line"
+                          } elseif ($line -match 'INSTALL_STARTED') {
+                              Write-Host "  ▶ $line"
+                          }
+                      }
+                      $lastLineCount = $lines.Count
+                  }
+              }
+
+              # ── 5:30 warning (once) ────────────────────────────────
+              if ($elapsedMin -ge 330 -and -not $warn330) {
+                  $warn330 = $true
+                  Write-Host "`n⚠ 5h30m elapsed — session expires in 30 min! Push your work to GitHub.`n"
+                  msg * "WARNING: RDP expires in 30 minutes! Push work to GitHub." 2>$null
+              }
+
+              # ── 5:50 warning (once) ────────────────────────────────
+              if ($elapsedMin -ge 350 -and -not $warn350) {
+                  $warn350 = $true
+                  Write-Host "`n⚠ 5h50m elapsed — session ends in ~10 minutes!`n"
+                  msg * "CRITICAL: RDP ending in 10 minutes!" 2>$null
+              }
+
+              # ── Hourly heartbeat ────────────────────────────────────
+              if ($currentHour -gt $heartbeatHour) {
+                  $heartbeatHour = $currentHour
+                  $status = "Session active — ${elapsedMin}m elapsed (max 360m)"
+                  Write-Host "[$(Get-Date -Format 'HH:mm')] $status"
+              }
+
+              # ── Billing check (once, after 5 min) ───────────────────
+              if (-not $billingDone -and $elapsedMin -ge 5) {
+                  $billingDone = $true
+                  $ghPat = "${{ secrets.GH_PAT }}"
+                  if ($ghPat -ne '' -and $ghPat -ne 'GH_PAT' -and $ghPat -ne 'PAT_TOKEN_HERE') {
+                      try {
+                          $repoInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY" -Headers @{ Authorization = "Bearer $ghPat" } -UseBasicParsing -ErrorAction SilentlyContinue
+                          if ($repoInfo -and $repoInfo.owner) {
+                              $ownerType = $repoInfo.owner.type
+                              $ownerLogin = $repoInfo.owner.login
+                              if ($ownerType -eq 'Organization') {
+                                  $billingUri = "https://api.github.com/orgs/$ownerLogin/settings/billing/actions"
+                              } else {
+                                  $billingUri = "https://api.github.com/users/$ownerLogin/settings/billing/actions"
+                              }
+                              $billing = Invoke-RestMethod -Uri $billingUri -Headers @{ Authorization = "Bearer $ghPat" } -UseBasicParsing -ErrorAction SilentlyContinue
+                              if ($billing -and $billing.total_minutes_used -ge 0) {
+                                  $remaining = $billing.included_minutes - $billing.total_minutes_used
+                                  $pctUsed = [math]::Round(($billing.total_minutes_used / $billing.included_minutes) * 100, 1)
+                                  $repoType = if ($repoInfo.private) { "private" } else { "public" }
+                                  Write-Host "  📊 Billing ($repoType): ${billing.total_minutes_used}/${billing.included_minutes}m used ($pctUsed%) — ${remaining}m remaining"
+                                  if ($remaining -lt 360) { Write-Host "  ⚠ Less than one full session remaining this month!" }
+                                  if ($remaining -lt 60) { Write-Host "  ⚠ Less than 1 hour remaining — use sparingly!" }
+                              }
+                          }
+                      } catch { Write-Host "  ℹ Billing: unable to query (token may lack permissions)" }
+                  } else {
+                      Write-Host "  ℹ Billing: set GH_PAT secret to see remaining GitHub Actions minutes"
+                  }
+              }
+
+              Start-Sleep -Seconds 120
           }
