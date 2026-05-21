@@ -153,6 +153,57 @@ You can RDP in within ~60 seconds of the workflow starting. Everything continues
 
 ---
 
+## Secure File Sharing
+
+The workflow automatically sets up **two secure ways** to transfer files between your RDP machine and your phone, PC, or other devices — all through Tailscale.
+
+### SMB (Network File Share)
+
+- **Share folder:** `C:\TailscaleShare`
+- **Access from your PC/phone:** `\\<TAILSCALE_IP>\TailscaleShare`
+- **User:** `RDP`
+- **Password:** your RDP password
+- **Permission:** full read/write
+
+Perfect for Windows PCs and any device with SMB support. The share is created automatically during workflow setup.
+
+**Mobile apps that support SMB:**
+- Android: `Solid Explorer`, `ES File Explorer`, `Total Commander`
+- iOS: `FileMerge` or other SMB clients
+
+### SFTP (SSH File Transfer Protocol)
+
+For devices where SMB doesn't work easily (especially phones), use SFTP:
+
+- **Host:** `<TAILSCALE_IP>` (same Tailscale IP as RDP)
+- **Port:** `22`
+- **User:** `RDP`
+- **Password:** your RDP password
+- **Home folder symlink:** `C:\Users\RDP\TailscaleShare` → points to the shared folder for convenience
+
+**Mobile apps that support SFTP:**
+- Android: `Termius`, `Solid Explorer`, `AndFTP`
+- iOS: `Prompt 3`, `Termius`, `iSH Shell`
+- Desktop: `WinSCP`, `FileZilla`, `Cyberduck`
+
+The OpenSSH server is installed and configured automatically during workflow setup.
+
+### How it works
+
+1. Both services are configured during the workflow run
+2. Firewall rules open port `445` (SMB) and port `22` (SSH)
+3. All communication is encrypted and isolated to your Tailscale network
+4. No file leaves your secure private network
+5. Use your RDP user credentials for both
+
+### Access priority
+
+- **PC → PC:** Use SMB (faster, simpler)
+- **Phone → Machine:** Try SMB first; fall back to SFTP if needed
+- **All platforms:** SFTP always works as a fallback
+
+---
+
 ## Session warnings
 
 The maintain loop prints warnings at key points and sends a Windows popup:

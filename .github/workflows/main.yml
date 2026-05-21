@@ -366,6 +366,94 @@ jobs:
           }
           Write-Host "TCP connectivity successful!"
 
+      - name: Create Secure Tailscale File Share
+        run: |
+          $shareName = "TailscaleShare"
+          $sharePath = "C:\TailscaleShare"
+          Write-Host "Creating secure share path: $sharePath"
+          New-Item -ItemType Directory -Path $sharePath -Force | Out-Null
+
+          Write-Host "Granting RDP user access to share folder"
+          icacls $sharePath /grant "RDP:(OI)(CI)F" /grant "Administrators:(OI)(CI)F" /T | Out-Null
+
+          if (Get-SmbShare -Name $shareName -ErrorAction SilentlyContinue) {
+              Write-Host "Existing SMB share $shareName found; removing and recreating"
+              Remove-SmbShare -Name $shareName -Force -ErrorAction SilentlyContinue
+          }
+
+          New-SmbShare -Name $shareName -Path $sharePath -FullAccess "RDP","Administrators" -ErrorAction Stop
+          Grant-SmbShareAccess -Name $shareName -AccountName "RDP" -AccessRight Full -Force | Out-Null
+
+          Write-Host "Allowing SMB through firewall for Tailscale access"
+          New-NetFirewallRule -DisplayName "Tailscale SMB" -Direction Inbound -LocalPort 445 -Protocol TCP -Action Allow -Profile Any -ErrorAction SilentlyContinue | Out-Null
+
+          $readmePath = "$sharePath\README.txt"
+          @(
+            "Tailscale file share for RDP and remote devices",
+            "Access this share from your phone or PC using SMB:",
+            "  \\\\$env:TAILSCALE_IP\\$shareName",
+            "Use the RDP user credentials to authenticate.",
+            "Files placed here are visible to the RDP user.",
+            "",
+            "Secure SFTP is also enabled on port 22 for the RDP user.",
+            "Connect using: sftp://$env:TAILSCALE_IP or host $env:TAILSCALE_IP port 22"
+          ) | Set-Content -Path $readmePath -Encoding UTF8
+          Write-Host "Created secure share and a README at $readmePath"
+
+      - name: Install and Configure OpenSSH Server for SFTP
+        run: |
+          Write-Host "Checking OpenSSH Server installation..."
+          $sshCap = Get-WindowsCapability -Online | Where-Object { $_.Name -like 'OpenSSH.Server*' }
+          if (-not $sshCap) {
+              Write-Error "OpenSSH Server capability not available"
+              exit 1
+          }
+          if ($sshCap.State -ne 'Installed') {
+              Write-Host "Installing OpenSSH Server capability"
+              Add-WindowsCapability -Online -Name $sshCap.Name
+          } else {
+              Write-Host "OpenSSH Server already installed"
+          }
+
+          $sshdConfig = "C:\ProgramData\ssh\sshd_config"
+          if (-not (Test-Path $sshdConfig)) {
+              Write-Error "sshd_config not found at $sshdConfig"
+              exit 1
+          }
+
+          Write-Host "Configuring SSH server for password auth and SFTP"
+          $config = Get-Content $sshdConfig
+          $config = $config | ForEach-Object {
+              if ($_ -match '^[#\s]*PasswordAuthentication') { 'PasswordAuthentication yes' }
+              elseif ($_ -match '^[#\s]*PubkeyAuthentication') { 'PubkeyAuthentication yes' }
+              elseif ($_ -match '^[#\s]*Subsystem\s+sftp') { 'Subsystem sftp sftp-server.exe' }
+              else { $_ }
+          }
+          if ($config -notmatch '^PasswordAuthentication yes') { $config += 'PasswordAuthentication yes' }
+          if ($config -notmatch '^PubkeyAuthentication yes') { $config += 'PubkeyAuthentication yes' }
+          if ($config -notmatch '^Subsystem sftp') { $config += 'Subsystem sftp sftp-server.exe' }
+          $config | Set-Content -Path $sshdConfig -Encoding ASCII
+
+          Write-Host "Starting and enabling sshd service"
+          if (-not (Get-Service -Name sshd -ErrorAction SilentlyContinue)) {
+              Write-Error "sshd service not available"
+              exit 1
+          }
+          Set-Service -Name sshd -StartupType Automatic
+          Start-Service -Name sshd
+
+          Write-Host "Allowing inbound SSH through firewall"
+          if (-not (Get-NetFirewallRule -DisplayName "Tailscale SSH" -ErrorAction SilentlyContinue)) {
+              New-NetFirewallRule -DisplayName "Tailscale SSH" -Direction Inbound -LocalPort 22 -Protocol TCP -Action Allow -Profile Any
+          }
+
+          $symlink = "C:\Users\RDP\TailscaleShare"
+          if (-not (Test-Path $symlink)) {
+              Write-Host "Creating symlink in RDP home for easy SFTP access"
+              New-Item -ItemType SymbolicLink -Path $symlink -Target "C:\TailscaleShare" -Force | Out-Null
+          }
+          Write-Host "OpenSSH SFTP server ready on port 22"
+
       - name: Configure Git
         run: |
           $gitName = "${{ secrets.GIT_USERNAME }}"
